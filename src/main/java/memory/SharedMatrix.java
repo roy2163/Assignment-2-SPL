@@ -115,7 +115,8 @@ public class SharedMatrix {
 
     public VectorOrientation getOrientation() {
         // TODO: return orientation
-        return vectors.length == 0 ? null : vectors[0].getOrientation();
+        if (vectors.length == 0){ throw new IllegalStateException("Matrix is empty"); } 
+        return vectors[0].getOrientation();
     }
 
     private void acquireAllVectorReadLocks(SharedVector[] vecs) {
