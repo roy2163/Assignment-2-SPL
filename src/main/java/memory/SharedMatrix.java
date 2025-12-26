@@ -23,6 +23,7 @@ public class SharedMatrix {
     public double[][] readRowMajor() {
         // TODO: return matrix contents as a row-major double[][]
         return null;
+        
     }
 
     public SharedVector get(int index) {
