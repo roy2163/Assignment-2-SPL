@@ -56,7 +56,18 @@ public class TiredThread extends Thread implements Comparable<TiredThread> {
      * it throws IllegalStateException.
      */
     public void newTask(Runnable task) {
-       // TODO
+        if(!alive.get()){
+            throw new IllegalStateException("Worker is not alive");
+        }
+        if(busy.get()){
+            throw new IllegalStateException("Worker is busy");
+        }
+        try{
+            handoff.add(task);
+        }
+        catch(IllegalStateException e){
+            throw new IllegalStateException("Worker is not ready to accept a task", e);
+        }
     }
 
     /**
@@ -64,17 +75,53 @@ public class TiredThread extends Thread implements Comparable<TiredThread> {
      * Inserts a poison pill so the worker wakes up and exits.
      */
     public void shutdown() {
-       // TODO
+        try{
+            alive.set(false);
+            handoff.put(POISON_PILL);
+        }
+        catch(InterruptedException e){
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void run() {
-       // TODO
+        while(alive.get()){
+            try{
+                Runnable task = handoff.take();
+                if(task == POISON_PILL){
+                    break;
+                }
+
+                long idleEndTime = System.nanoTime();
+                long idleDuration = idleEndTime - idleStartTime.get();
+                timeIdle.addAndGet(idleDuration);
+
+                busy.set(true);
+                long startTime = System.nanoTime();
+                try{
+                    task.run();
+                }
+                catch(Exception e){
+                    e.printStackTrace();
+                }
+                finally{
+                    long endTime = System.nanoTime();
+                    long usedDuration = endTime - startTime;
+                    timeUsed.addAndGet(usedDuration);
+                    busy.set(false);
+
+                    idleStartTime.set(System.nanoTime());
+                }
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public int compareTo(TiredThread o) {
-        // TODO
-        return 0;
+        return Double.compare(this.getFatigue(), o.getFatigue());
     }
 }
