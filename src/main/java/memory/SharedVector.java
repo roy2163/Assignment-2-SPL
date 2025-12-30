@@ -24,7 +24,6 @@ public class SharedVector {
         } finally {
             lock.readLock().unlock();
         }
-
     }
 
     public int length() {
@@ -127,21 +126,19 @@ public class SharedVector {
         }
     }
     public void vecMatMul(SharedMatrix matrix) {
-        VectorOrientation vOrient = this.getOrientation();
         VectorOrientation mOrient = matrix.getOrientation();
-
+        if(this.getOrientation() != VectorOrientation.ROW_MAJOR){
+            throw new IllegalArgumentException("Vector must be in ROW_MAJOR orientation for vector-matrix multiplication.");
+        }
         int mRows = (matrix.getOrientation() == VectorOrientation.COLUMN_MAJOR) ? matrix.get(0).length() : matrix.length();
         int mCols = (matrix.getOrientation() == VectorOrientation.COLUMN_MAJOR) ? matrix.length() : matrix.get(0).length();
         validateDimensions(this.length(), mRows, mCols);
 
         double[] result;
 
-        boolean canUseNormalDot = (vOrient == VectorOrientation.ROW_MAJOR && mOrient == VectorOrientation.COLUMN_MAJOR) ||
-                               (vOrient == VectorOrientation.COLUMN_MAJOR && mOrient == VectorOrientation.ROW_MAJOR);
-
         writeLock();
         try{
-            if(canUseNormalDot){
+            if(mOrient == VectorOrientation.COLUMN_MAJOR){
                 result = new double[matrix.length()];
                 for (int i = 0; i < matrix.length(); i++) {
                     result[i] = this.dot(matrix.get(i));

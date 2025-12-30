@@ -4,6 +4,7 @@ import parser.*;
 import memory.*;
 import scheduling.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class LinearAlgebraEngine {
@@ -13,41 +14,143 @@ public class LinearAlgebraEngine {
     private TiredExecutor executor;
 
     public LinearAlgebraEngine(int numThreads) {
-        // TODO: create executor with given thread count
+        executor = new TiredExecutor(numThreads);
     }
 
     public ComputationNode run(ComputationNode computationRoot) {
-        // TODO: resolve computation tree step by step until final matrix is produced
-        return null;
+        if (computationRoot == null) {
+            throw new IllegalArgumentException("Computation root cannot be null");
+        }
+        while (computationRoot.getNodeType() != ComputationNodeType.MATRIX){
+            ComputationNode resolvableNode = computationRoot.findResolvable();
+            if(resolvableNode == null) {
+                throw new IllegalStateException("No resolvable node found, but computation is not complete");
+            }
+            loadAndCompute(resolvableNode);
+        }
+        return computationRoot;
     }
 
     public void loadAndCompute(ComputationNode node) {
-        // TODO: load operand matrices
-        // TODO: create compute tasks & submit tasks to executor
+        if(node == null) {
+            return;
+        }
+        List<Runnable> tasks;
+        switch (node.getNodeType()) {
+            case ADD:
+                if(node.getChildren().size() != 2) {
+                    throw new IllegalArgumentException("ADD node must have exactly 2 children");
+                }
+                if(node.getChildren().get(0).getNodeType() != ComputationNodeType.MATRIX ||
+                   node.getChildren().get(1).getNodeType() != ComputationNodeType.MATRIX) {
+                    throw new IllegalArgumentException("ADD node children must be of type MATRIX");
+                }
+                leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
+                rightMatrix.loadRowMajor(node.getChildren().get(1).getMatrix());
+                tasks = createAddTasks();
+                executor.submitAll(tasks);
+                break;
+            case MULTIPLY:
+                if(node.getChildren().size() != 2) {
+                    throw new IllegalArgumentException("MULTIPLY node must have exactly 2 children");
+                }
+                if(node.getChildren().get(0).getNodeType() != ComputationNodeType.MATRIX ||
+                   node.getChildren().get(1).getNodeType() != ComputationNodeType.MATRIX) {
+                    throw new IllegalArgumentException("MULTIPLY node children must be of type MATRIX");
+                }
+                leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
+                rightMatrix.loadRowMajor(node.getChildren().get(1).getMatrix());
+                tasks = createMultiplyTasks();
+                executor.submitAll(tasks);
+                break;
+
+            case NEGATE:
+                if(node.getChildren().size() != 1) {
+                    throw new IllegalArgumentException("NEGATE node must have exactly 1 child");
+                }
+                if(node.getChildren().get(0).getNodeType() != ComputationNodeType.MATRIX) {
+                    throw new IllegalArgumentException("NEGATE node child must be of type MATRIX");
+                }
+                leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
+                tasks = createNegateTasks();
+                executor.submitAll(tasks);
+                break;
+            case TRANSPOSE:
+                if(node.getChildren().size() != 1) {
+                    throw new IllegalArgumentException("TRANSPOSE node must have exactly 1 child");
+                }
+                if(node.getChildren().get(0).getNodeType() != ComputationNodeType.MATRIX) {
+                    throw new IllegalArgumentException("TRANSPOSE node child must be of type MATRIX");
+                }
+                leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
+                tasks = createTransposeTasks();
+                executor.submitAll(tasks);
+
+                break;
+            default:
+                throw new IllegalArgumentException("Computation root cannot be a matrix");
+        }
+        node.resolve(leftMatrix.readRowMajor());
+
     }
 
     public List<Runnable> createAddTasks() {
         // TODO: return tasks that perform row-wise addition
-        return null;
+        List<Runnable> tasks = new ArrayList<>();
+        if(leftMatrix.getOrientation()!= VectorOrientation.ROW_MAJOR){
+            leftMatrix.loadRowMajor(leftMatrix.readRowMajor());
+        }
+        if(rightMatrix.getOrientation()!= VectorOrientation.ROW_MAJOR){
+            rightMatrix.loadRowMajor(rightMatrix.readRowMajor());
+        }
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            final int rowIndex = i;
+            tasks.add (() -> { leftMatrix.get(rowIndex).add(rightMatrix.get(rowIndex));} );
+        }
+        return tasks;
     }
 
     public List<Runnable> createMultiplyTasks() {
         // TODO: return tasks that perform row × matrix multiplication
-        return null;
+        List<Runnable> tasks = new ArrayList<>();
+        if(leftMatrix.getOrientation()!= VectorOrientation.ROW_MAJOR){
+            leftMatrix.loadRowMajor(leftMatrix.readRowMajor());
+        }
+        for(int i = 0; i < leftMatrix.length(); i++) {
+            final int rowIndex = i;
+            tasks.add (() -> { leftMatrix.get(rowIndex).vecMatMul(rightMatrix);});
+        }
+        return tasks;
     }
 
     public List<Runnable> createNegateTasks() {
         // TODO: return tasks that negate rows
-        return null;
+        List<Runnable> tasks = new ArrayList<>();
+        if(leftMatrix.getOrientation()!= VectorOrientation.ROW_MAJOR){
+            leftMatrix.loadRowMajor(leftMatrix.readRowMajor());
+        }
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            final int rowIndex = i;
+            tasks.add (() -> { leftMatrix.get(rowIndex).negate();} );
+        }
+        return tasks;
     }
 
     public List<Runnable> createTransposeTasks() {
         // TODO: return tasks that transpose rows
-        return null;
+        List<Runnable> tasks = new ArrayList<>();
+        for (int i = 0; i < leftMatrix.length(); i++) {
+            final int rowIndex = i;
+            tasks.add (() -> { leftMatrix.get(rowIndex).transpose();} );
+        }
+        return tasks;
     }
 
     public String getWorkerReport() {
         // TODO: return summary of worker activity
-        return null;
+        return executor.getWorkerReport();
+    }
+    public void shutdown() throws InterruptedException {
+        executor.shutdown();
     }
 }
