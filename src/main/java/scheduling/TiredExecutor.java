@@ -26,7 +26,21 @@ public class TiredExecutor {
     }
 
     public void submit(Runnable task) {
-        // TODO
+        try {
+            TiredThread worker = idleMinHeap.take();
+            inFlight.incrementAndGet();
+            worker.newTask(() -> {
+                try {
+                    task.run();
+                } finally {
+                    idleMinHeap.add(worker);
+                    inFlight.decrementAndGet();
+                }
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Executor was interrupted while submitting a task", e);
+        }
     }
 
     public void submitAll(Iterable<Runnable> tasks) {
@@ -43,7 +57,14 @@ public class TiredExecutor {
     }
 
     public synchronized String getWorkerReport() {
-        // TODO: return readable statistics for each worker
-        return null;
+        StringBuilder report = new StringBuilder();
+        for (TiredThread worker : workers) {
+            report.append(String.format("Worker %d: Time Used = %d ns, Time Idle = %d ns, Fatigue = %.2f\n",
+                    worker.getWorkerId(),
+                    worker.getTimeUsed(),
+                    worker.getTimeIdle(),
+                    worker.getFatigue()));
+        }
+        return report.toString();
     }
 }
