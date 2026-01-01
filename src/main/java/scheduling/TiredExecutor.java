@@ -25,27 +25,51 @@ public class TiredExecutor {
         inFlight.set(0);
     }
 
-    public void submit(Runnable task) {
-        try {
-            TiredThread worker = idleMinHeap.take();
-            inFlight.incrementAndGet();
-            worker.newTask(() -> {
-                try {
-                    task.run();
-                } finally {
+public void submit(Runnable task) {
+    try {
+        TiredThread worker = idleMinHeap.take();
+        inFlight.incrementAndGet();
+
+        Runnable wrappedTask = () -> {
+            try {
+                task.run();
+            } finally {
+                idleMinHeap.add(worker);
+                inFlight.decrementAndGet();
+            }
+        };
+        while (true) {
+            try {
+                worker.newTask(wrappedTask);
+                break;
+            } catch (IllegalStateException e) {
+                if ("Worker is busy".equals(e.getMessage())) {
+                    synchronized (worker) {
+                        if (worker.isBusy()) {
+                            try {
+                                worker.wait();
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt(); 
+                                throw new RuntimeException("Interrupted while waiting for worker", ie);
+                            }
+                        }
+                    }
+                } else {
                     idleMinHeap.add(worker);
                     inFlight.decrementAndGet();
+                    throw e;
                 }
-            });
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Executor was interrupted while submitting a task", e);
+            }
         }
-    }
 
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Executor interrupted", e);
+    }
+}
     public void submitAll(Iterable<Runnable> tasks) {
-        while(tasks.iterator().hasNext()){
-            submit(tasks.iterator().next());
+        for (Runnable task : tasks) {
+            submit(task);
         }
     }
 
