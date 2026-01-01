@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class LAETest {
     private LinearAlgebraEngine lae;
-    private final int NUM_THREADS = 2; // מספיק ת'רדים כדי לבדוק מקביליות בסיסית
+    private final int NUM_THREADS = 2; 
 
     @BeforeEach
     void setUp() {
@@ -28,7 +28,6 @@ public class LAETest {
         }
     }
 
-    // --- Happy Path Tests (בדיקות תקינות) ---
 
     @Test
     void testSimpleAddition() {

@@ -6,6 +6,7 @@ import scheduling.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 public class LinearAlgebraEngine {
 
@@ -48,7 +49,7 @@ public class LinearAlgebraEngine {
                 leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
                 rightMatrix.loadRowMajor(node.getChildren().get(1).getMatrix());
                 tasks = createAddTasks();
-                executor.submitAll(tasks);
+                executeAndWait(tasks);
                 break;
             case MULTIPLY:
                 if(node.getChildren().size() != 2) {
@@ -61,7 +62,7 @@ public class LinearAlgebraEngine {
                 leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
                 rightMatrix.loadRowMajor(node.getChildren().get(1).getMatrix());
                 tasks = createMultiplyTasks();
-                executor.submitAll(tasks);
+                executeAndWait(tasks);
                 break;
 
             case NEGATE:
@@ -73,7 +74,7 @@ public class LinearAlgebraEngine {
                 }
                 leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
                 tasks = createNegateTasks();
-                executor.submitAll(tasks);
+                executeAndWait(tasks);
                 break;
             case TRANSPOSE:
                 if(node.getChildren().size() != 1) {
@@ -84,7 +85,7 @@ public class LinearAlgebraEngine {
                 }
                 leftMatrix.loadRowMajor(node.getChildren().get(0).getMatrix());
                 tasks = createTransposeTasks();
-                executor.submitAll(tasks);
+                executeAndWait(tasks);
 
                 break;
             default:
@@ -94,6 +95,29 @@ public class LinearAlgebraEngine {
 
     }
 
+    private void executeAndWait(List<Runnable> tasks) {
+        CountDownLatch latch = new CountDownLatch(tasks.size());
+        
+        List<Runnable> wrappedTasks = new ArrayList<>();
+        for (Runnable task : tasks) {
+            wrappedTasks.add(() -> {
+                try {
+                    task.run();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        
+        executor.submitAll(wrappedTasks);
+        
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for tasks", e);
+        }
+    }
     public List<Runnable> createAddTasks() {
         // TODO: return tasks that perform row-wise addition
         List<Runnable> tasks = new ArrayList<>();
