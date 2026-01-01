@@ -137,7 +137,7 @@ class SharedVectorTest {
             rowVec.vecMatMul(matrix);
         });
         
-        String expectedMsg = "Row vector length (" + rowVec.length() + ") must match matrix rows (" + matrix.length() + ")";
+        String expectedMsg = "error: Illegal operation: dimensions mismatch";
         assertEquals(expectedMsg, exception.getMessage());
     }
 
