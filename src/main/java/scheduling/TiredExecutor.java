@@ -66,5 +66,6 @@ public class TiredExecutor {
                     worker.getFatigue()));
         }
         return report.toString();
+
     }
 }
