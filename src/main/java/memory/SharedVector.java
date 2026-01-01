@@ -14,7 +14,6 @@ public class SharedVector {
     }
 
     public double get(int index) {
-        // TODO: return element at index (read-locked)
         lock.readLock().lock();
         try{
             if(index < 0 || index >= this.vector.length) {
@@ -98,7 +97,7 @@ public class SharedVector {
         if(other.length() != this.length()) {
             throw new IllegalArgumentException("Vectors must be of the same length to compute dot product.");
         }        
-        if(this.orientation != other.getOrientation()) {
+        if(this.orientation == other.getOrientation()) {
             throw new IllegalArgumentException("Vectors must be of different orientation to compute dot product.");
         }
         readLock();
@@ -119,10 +118,10 @@ public class SharedVector {
 
     private void validateDimensions(int vLen, int mRows, int mCols) {
         if (this.getOrientation() == VectorOrientation.ROW_MAJOR && vLen != mRows) {
-            throw new IllegalArgumentException("Row vector length (" + vLen + ") must match matrix rows (" + mRows + ")");
+            throw new IllegalArgumentException("error: Illegal operation: dimensions mismatch");
         }
         if (this.getOrientation() == VectorOrientation.COLUMN_MAJOR && vLen != mCols) {
-            throw new IllegalArgumentException("Column vector length (" + vLen + ") must match matrix columns (" + mCols + ")");
+            throw new IllegalArgumentException("error: Illegal operation: dimensions mismatch");
         }
     }
     public void vecMatMul(SharedMatrix matrix) {
