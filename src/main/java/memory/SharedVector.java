@@ -66,7 +66,7 @@ public class SharedVector {
 
     public void add(SharedVector other) {
         if(other.length() != this.length()) {
-            throw new IllegalArgumentException("Vectors must be of the same length to add.");
+            throw new IllegalArgumentException("Error: Illegal operation: dimension mismatch");
         }
         writeLock();
         other.readLock();
